@@ -110,9 +110,16 @@ class Pixiv():
             href = re.findall(href_temp, str(section))  #由此改造成原图的地址
             url = str(href).replace("['", '').replace("']", '').replace('c/240x480/img-master', 'img-original').replace('_master1200', '')
 
-            self.download_img(url, img_referer, date, title, name)  # 去下载这个图片
+            title = title.replace('?', '_').replace('/', '_').replace('\\', '_').replace('*', '_').replace('|', '_')\
+                .replace('>', '_').replace('<', '_').replace(':', '_').replace('"', '_').strip()
+            name = name.replace('?', '_').replace('/', '_').replace('\\', '_').replace('*', '_').replace('|', '_')\
+                .replace('>', '_').replace('<', '_').replace(':', '_').replace('"', '_').strip()
+            # 去掉那些不能在文件名里面的，加上strip()去掉换行
+            save_name = title + '---' + name
 
-    def download_img(self, url, referer, date, title, name):
+            self.download_img(url, img_referer, date, save_name)  # 去下载这个图片
+
+    def download_img(self, url, referer, date, save_name):
         headers = self.headers
         headers['Referer'] = referer  # 据说pixiv防止盗链会验证headers，主要是referer
 
@@ -123,23 +130,30 @@ class Pixiv():
             print('获取图片失败')
             return False
 
-        title = title.replace('?', '_').replace('/', '_').replace('\\', '_').replace('*', '_').replace('|', '_')\
-            .replace('>', '_').replace('<', '_').replace(':', '_').replace('"', '_').strip()
-        # 去掉那些不能在文件名里面的.记得加上strip()去掉换行
-        save_name = title + '---' + name
-
-        if os.path.exists(os.path.join(self.load_path, date, save_name + '.jpg')):
+        img_format = url[-4:]
+        if os.path.exists(os.path.join(self.load_path, date, save_name + img_format):
             for i in range(1, 100):  # 如果重名就加上一个数字
-                if not os.path.exists(os.path.join(self.load_path, date, save_name + str(i) + '.jpg')):
+                if not os.path.exists(os.path.join(self.load_path, date, save_name + str(i) + img_format):
                     save_name = save_name + str(i)
                     break
         
         print('正在保存名为: ' + save_name + ' 的图片')
-        with open(save_name + '.jpg', 'wb') as f:  # 图片要用b
+        with open(save_name + img_format, 'wb') as f:  # 图片要用b
             f.write(img)
             f.close()
         print('该图片保存完毕')
 
+    def mkdir(self, date):
+        is_exist = os.path.exists(os.path.join(self.load_path, date))
+        if not is_exist:
+            print('创建名为' + date + '的文件夹')
+            os.makedirs(os.path.join(self.load_path, date))
+            os.chdir(os.path.join(self.load_path, date))
+            return True
+        else:
+            print('名为' + date + '的文件夹已经存在')
+            os.chdir(os.path.join(self.load_path, date))
+            return False
     def mkdir(self, date):
         is_exist = os.path.exists(os.path.join(self.load_path, date))
         if not is_exist:
