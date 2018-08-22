@@ -87,28 +87,15 @@ class Pixiv():
 
     def get_img(self, html, date):
         section_soup = BeautifulSoup(html, 'lxml')  # 传入日期date的html
-        section_list = section_soup.find_all('section', attrs = {'class', 'ranking-item'})   # 找到section
-        for section in section_list:  
-            try:
-                title_temp = re.compile('data-title="(.+?)" data-user-name')
-                title = re.findall(title_temp, str(section)) #图片信息之标题
-                title = str(title).replace("['", '').replace("']", '')
-            except:
-                title = '++++'
-            try:
-                name_temp = re.compile('data-user-name="(.+?)" data-view-count')
-                name = re.findall(name_temp, str(section))  #图片信息之作者
-                name = str(name).replace("['", '').replace("']", '')
-            except:
-                name = '++'
-            
-            data_id_temp = re.compile('data-id="(.+?)" data-rank')
-            data_id = re.findall(data_id_temp, str(section))
-            img_referer = self.img_referer + str(data_id).replace("['", '').replace("']", '')  # 作为下载原图添加的referer
-
-            href_temp = re.compile('data-src="(.+?)" data-tags')
-            href = re.findall(href_temp, str(section))  #由此改造成原图的地址
-            url = str(href).replace("['", '').replace("']", '').replace('c/240x480/img-master', 'img-original').replace('_master1200', '')
+        section_list = section_soup.find_all('section')   # 找到section
+        for section in section_list:
+            title = section['data-title']  #图片信息之标题
+            name = section['data-user-name']  #图片信息之作者
+            data_id = section['data-id']
+            img_referer = self.img_referer + data_id  # 作为下载原图添加的referer
+            href_temp = section.find('img')
+            href = href_temp['data-src']  #由此改造成原图的地址
+            url = href.replace('c/240x480/img-master', 'img-original').replace('_master1200', '')  #原图地址
 
             title = title.replace('?', '_').replace('/', '_').replace('\\', '_').replace('*', '_').replace('|', '_')\
                 .replace('>', '_').replace('<', '_').replace(':', '_').replace('"', '_').strip()
@@ -121,22 +108,28 @@ class Pixiv():
 
     def download_img(self, url, referer, date, save_name):
         headers = self.headers
-        headers['Referer'] = referer  # 据说pixiv防止盗链会验证headers，主要是referer
-
+        headers['Referer'] = referer  # 验证headers，主要是referer
         try:
-            html = requests.get(url, headers = headers)
-            img = html.content
-        except:  
+            try:
+                html = requests.get(url, headers = headers)
+                if html.status_code == (404 or 403) :
+                    html.raise_for_status()
+                img_format = '.jpg'
+                img = html.content
+            except:
+                url = url.replace('jpg', 'png')
+                html = requests.get(url, headers = headers)
+                img_format = '.png'
+                img = html.content
+        except:
             print('获取图片失败')
             return False
 
-        img_format = url[-4:]
-        if os.path.exists(os.path.join(self.load_path, date, save_name + img_format):
+        if os.path.exists(os.path.join(self.load_path, date, save_name + img_format)):
             for i in range(1, 100):  # 如果重名就加上一个数字
-                if not os.path.exists(os.path.join(self.load_path, date, save_name + str(i) + img_format):
+                if not os.path.exists(os.path.join(self.load_path, date, save_name + str(i) + img_format)):
                     save_name = save_name + str(i)
                     break
-        
         print('正在保存名为: ' + save_name + ' 的图片')
         with open(save_name + img_format, 'wb') as f:  # 图片要用b
             f.write(img)
