@@ -30,10 +30,9 @@ class Pixiv():
             self.ip_pool_url = 'http://xicidaili/nn/'
 
     def login(self):
-        # 前三行捕获post_key
         post_key_html = se.get(self.base_url, headers = self.headers).text
         post_key_soup = BeautifulSoup(post_key_html, 'lxml')
-        self.post_key = post_key_soup.find('input')['value']
+        self.post_key = post_key_soup.find('input')['value']  #  捕获post_key
         data = {
             'pixiv_id': self.pixiv_id,
             'password': self.password,
@@ -111,16 +110,16 @@ class Pixiv():
         headers['Referer'] = referer  # 验证headers，主要是referer
         try:
             try:
-                html = requests.get(url, headers = headers)
-                if html.status_code == (404 or 403) :
-                    html.raise_for_status()
+                img = requests.get(url, headers = headers)
+                total_size = int(img.headers['Content-Length'])
+                if img.status_code == (404 or 403) :
+                    img.raise_for_status()
                 img_format = '.jpg'
-                img = html.content
             except:
                 url = url.replace('jpg', 'png')
-                html = requests.get(url, headers = headers)
+                img = requests.get(url, headers = headers)
+                total_size = int(img.headers['Content-Length'])
                 img_format = '.png'
-                img = html.content
         except:
             print('获取图片失败')
             return False
@@ -131,10 +130,18 @@ class Pixiv():
                     save_name = save_name + str(i)
                     break
         print('正在保存名为: ' + save_name + ' 的图片')
-        with open(save_name + img_format, 'wb') as f:  # 图片要用b
-            f.write(img)
+        temp_size = 0
+        with open(save_name + img_format, 'wb') as f:
+            for chunk in img.iter_content(chunk_size=1024):
+                if chunk:
+                    temp_size += len(chunk)
+                    f.write(chunk)
+                    f.flush()
+                    done = int(50 * temp_size / total_size)
+                    sys.stdout.write("\r|%s%s| %d%%" % ('█' * done, ' ' * (50 - done), 100 * temp_size / total_size))
+                    sys.stdout.flush()
             f.close()
-        print('该图片保存完毕')
+        print('\n该图片保存完毕')
 
     def mkdir(self, date):
         is_exist = os.path.exists(os.path.join(self.load_path, date))
